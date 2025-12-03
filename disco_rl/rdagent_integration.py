@@ -228,6 +228,7 @@ class DiscoTrainer:
         self.learner_state = None
         self.actor_state = None
         self.env_state = None
+        self.env_timestep = None  # Current timestep with observations
         self.training_logs = []
 
     def initialize(self):
@@ -235,7 +236,7 @@ class DiscoTrainer:
         self.rng, init_rng, env_rng, actor_rng = jax.random.split(self.rng, 4)
 
         # Initialize environment
-        self.env_state, env_timestep = self.env.reset(env_rng)
+        self.env_state, self.env_timestep = self.env.reset(env_rng)
 
         # Initialize agent
         self.learner_state = self.agent.initial_learner_state(init_rng)
@@ -260,7 +261,7 @@ class DiscoTrainer:
             self.rng, step_rng = jax.random.split(self.rng)
 
             # Collect trajectory
-            rollout, self.actor_state, self.env_state = self._collect_trajectory(
+            rollout, self.actor_state, self.env_state, self.env_timestep = self._collect_trajectory(
                 step_rng
             )
 
@@ -288,14 +289,12 @@ class DiscoTrainer:
         timesteps = []
         actor_state = self.actor_state
         env_state = self.env_state
+        env_timestep = self.env_timestep
 
         for t in range(trajectory_length):
             rng, action_rng = jax.random.split(rng)
 
-            # Get current observation
-            env_state, env_timestep = self.env.step(env_state, None)  # Get obs
-
-            # Actor step
+            # Actor step using current observation
             actor_timestep, actor_state = self.agent.actor_step(
                 self.learner_state,
                 actor_state,
@@ -303,7 +302,7 @@ class DiscoTrainer:
                 action_rng,
             )
 
-            # Environment step
+            # Environment step with the chosen action
             env_state, env_timestep = self.env.step(env_state, actor_timestep.actions)
 
             timesteps.append(actor_timestep)
@@ -320,7 +319,7 @@ class DiscoTrainer:
             logits=jnp.stack([t.logits for t in timesteps]),
         )
 
-        return rollout, actor_state, env_state
+        return rollout, actor_state, env_state, env_timestep
 
     def evaluate(self, num_episodes: int | None = None) -> ExecutionExperimentResult:
         """Evaluate trained policy.
