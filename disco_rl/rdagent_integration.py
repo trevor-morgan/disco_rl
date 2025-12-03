@@ -109,8 +109,15 @@ class ExecutionExperimentConfig:
 
     @classmethod
     def from_dict(cls, d: dict) -> "ExecutionExperimentConfig":
-        """Deserialize from RD-Agent storage."""
-        return cls(**d)
+        """Deserialize from RD-Agent storage.
+
+        Filters out unknown keys to allow for extra fields like 'use_disco'
+        which are used by DiscoTrainer but not part of this config.
+        """
+        import dataclasses
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        filtered = {k: v for k, v in d.items() if k in valid_fields}
+        return cls(**filtered)
 
 
 @dataclass
