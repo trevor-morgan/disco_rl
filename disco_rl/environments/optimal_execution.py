@@ -218,7 +218,10 @@ class SingleStreamOptimalExecution:
         if self._reset_next_step:
             return self.reset()
 
-        action_config = ACTIONS[action]
+        # Convert JAX array to Python int if needed
+        if hasattr(action, 'item'):
+            action = action.item()
+        action_config = ACTIONS[int(action)]
         exec_frac = action_config["exec_frac"]
         impact_mult = action_config["impact_mult"]
 
