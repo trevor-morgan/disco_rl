@@ -232,14 +232,14 @@ class DiscoTrainer:
 
     def initialize(self):
         """Initialize agent and environment states."""
-        self.rng, init_rng, env_rng = jax.random.split(self.rng, 3)
+        self.rng, init_rng, env_rng, actor_rng = jax.random.split(self.rng, 4)
 
         # Initialize environment
         self.env_state, env_timestep = self.env.reset(env_rng)
 
         # Initialize agent
         self.learner_state = self.agent.initial_learner_state(init_rng)
-        self.actor_state = self.agent.initial_actor_state()
+        self.actor_state = self.agent.initial_actor_state(actor_rng)
 
     def train(self, num_steps: int | None = None) -> list[dict]:
         """Run training loop.
@@ -354,7 +354,8 @@ class DiscoTrainer:
                 episode_length = 0
 
                 # Reset actor state for episode
-                actor_state = self.agent.initial_actor_state()
+                eval_rng, actor_init_rng = jax.random.split(eval_rng)
+                actor_state = self.agent.initial_actor_state(actor_init_rng)
 
                 while not timestep.last():
                     eval_rng, action_rng = jax.random.split(eval_rng)
