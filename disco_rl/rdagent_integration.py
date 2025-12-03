@@ -42,6 +42,7 @@ import numpy as np
 
 from disco_rl import agent as disco_agent
 from disco_rl.environments import optimal_execution
+from disco_rl.update_rules.disco import load_disco103_params
 
 
 @dataclass
@@ -224,6 +225,12 @@ class DiscoTrainer:
             batch_axis_name=None,
         )
 
+        # Load meta params (Disco103 weights for Disco, empty for Actor-Critic)
+        if use_disco:
+            self.meta_params = load_disco103_params()
+        else:
+            self.meta_params = {}
+
         # Training state
         self.learner_state = None
         self.actor_state = None
@@ -266,9 +273,15 @@ class DiscoTrainer:
             )
 
             # Learner step
-            self.learner_state, _, step_log = self.agent.learner_step(
-                self.learner_state,
+            # Signature: (rng, rollout, learner_state, agent_net_state, update_rule_params, is_meta_training)
+            self.rng, learner_rng = jax.random.split(self.rng)
+            self.learner_state, self.actor_state, step_log = self.agent.learner_step(
+                learner_rng,
                 rollout,
+                self.learner_state,
+                self.actor_state,
+                self.meta_params,  # Disco103 params or empty for Actor-Critic
+                False,  # Not meta-training
             )
 
             # Log periodically

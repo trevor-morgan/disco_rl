@@ -426,3 +426,46 @@ def get_input_option() -> types.MetaNetInputOption:
           ),
       ),
   )
+
+
+def load_disco103_params(weights_path: str | None = None) -> types.MetaParams:
+  """Load pre-trained Disco103 meta-network parameters.
+
+  Args:
+    weights_path: Path to disco_103.npz. If None, uses default location.
+
+  Returns:
+    MetaParams: The pre-trained meta-network parameters as a nested dict.
+  """
+  import os
+  import numpy as np
+
+  if weights_path is None:
+    # Default to the weights directory in this package
+    weights_path = os.path.join(
+        os.path.dirname(__file__), 'weights', 'disco_103.npz'
+    )
+
+  if not os.path.exists(weights_path):
+    raise FileNotFoundError(
+        f"Disco103 weights not found at {weights_path}. "
+        "Please ensure the disco_103.npz file is present."
+    )
+
+  # Load the npz file
+  data = np.load(weights_path, allow_pickle=True)
+
+  # Convert flat keys to nested dict structure expected by Haiku
+  # Keys are like 'lstm/linear/b', 'lstm/linear/w', etc.
+  params = {}
+  for key in data.keys():
+    parts = key.split('/')
+    current = params
+    for part in parts[:-1]:
+      if part not in current:
+        current[part] = {}
+      current = current[part]
+    # Convert numpy array to JAX array
+    current[parts[-1]] = jnp.array(data[key])
+
+  return params
