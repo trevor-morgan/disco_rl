@@ -435,7 +435,10 @@ def load_disco103_params(weights_path: str | None = None) -> types.MetaParams:
     weights_path: Path to disco_103.npz. If None, uses default location.
 
   Returns:
-    MetaParams: The pre-trained meta-network parameters as a nested dict.
+    MetaParams: The pre-trained meta-network parameters in Haiku format.
+
+  Haiku uses flat keys like 'lstm/mlp/~/linear_0' with values being dicts
+  containing 'w' and 'b' arrays.
   """
   import os
   import numpy as np
@@ -455,17 +458,19 @@ def load_disco103_params(weights_path: str | None = None) -> types.MetaParams:
   # Load the npz file
   data = np.load(weights_path, allow_pickle=True)
 
-  # Convert flat keys to nested dict structure expected by Haiku
-  # Keys are like 'lstm/linear/b', 'lstm/linear/w', etc.
+  # Convert to Haiku format: flat keys like 'lstm/mlp/~/linear_0'
+  # with values as dicts containing 'w' and 'b'
+  # Keys in npz are like 'lstm/mlp/~/linear_0/w', 'lstm/mlp/~/linear_0/b'
   params = {}
   for key in data.keys():
     parts = key.split('/')
-    current = params
-    for part in parts[:-1]:
-      if part not in current:
-        current[part] = {}
-      current = current[part]
+    # Last part is 'w' or 'b', everything before is the module path
+    param_name = parts[-1]  # 'w' or 'b'
+    module_path = '/'.join(parts[:-1])  # 'lstm/mlp/~/linear_0'
+
+    if module_path not in params:
+      params[module_path] = {}
     # Convert numpy array to JAX array
-    current[parts[-1]] = jnp.array(data[key])
+    params[module_path][param_name] = jnp.array(data[key])
 
   return params
