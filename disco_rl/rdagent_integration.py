@@ -295,11 +295,12 @@ class DiscoTrainer:
             rng, action_rng = jax.random.split(rng)
 
             # Actor step using current observation
+            # actor_step signature: (actor_params, rng, timestep, actor_state)
             actor_timestep, actor_state = self.agent.actor_step(
-                self.learner_state,
-                actor_state,
-                env_timestep,
+                self.learner_state.params,
                 action_rng,
+                env_timestep,
+                actor_state,
             )
 
             # Environment step with the chosen action
@@ -367,11 +368,12 @@ class DiscoTrainer:
                         reward=jnp.array([timestep.reward or 0.0]),
                     )
 
+                    # actor_step signature: (actor_params, rng, timestep, actor_state)
                     actor_timestep, actor_state = self.agent.actor_step(
-                        self.learner_state,
-                        actor_state,
-                        env_ts,
+                        self.learner_state.params,
                         action_rng,
+                        env_ts,
+                        actor_state,
                     )
 
                     action = int(actor_timestep.actions[0])
